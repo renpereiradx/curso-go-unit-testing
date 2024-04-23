@@ -8,6 +8,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func Sum(a, b int) int {
+	return a + b
+}
+
 func main() {
 	router := mux.NewRouter()
 

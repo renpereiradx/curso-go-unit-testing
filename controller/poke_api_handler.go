@@ -38,6 +38,7 @@ func GetPokemon(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
+	// body, err := ioutil.ReadAll(response.Body)
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Fatal(err)
