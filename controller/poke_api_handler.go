@@ -4,12 +4,18 @@ import (
 	"catching-pokemons/models"
 	"catching-pokemons/util"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+)
+
+var (
+	ErrPokemonNotFound = errors.New("pokemon not found")
+	ErrPokeApiFailure  = errors.New("pokeapi failure")
 )
 
 // respondwithJSON write json response format
@@ -31,24 +37,15 @@ func respondwithJSON(w http.ResponseWriter, code int, payload interface{}) {
 func GetPokemon(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	request := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", id)
-
-	response, err := http.Get(request)
-	if err != nil {
-		log.Fatal(err)
+	apiPokemon, err := GetPokemonFromAPI(id)
+	if errors.Is(err, ErrPokemonNotFound) {
+		respondwithJSON(w, http.StatusNotFound, fmt.Sprintf("pokemon not found %s", id))
+		return
 	}
 
-	// body, err := ioutil.ReadAll(response.Body)
-	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	var apiPokemon models.PokeApiPokemonResponse
-
-	err = json.Unmarshal(body, &apiPokemon)
-	if err != nil {
-		log.Fatal(err)
+		respondwithJSON(w, http.StatusInternalServerError, fmt.Sprintf("error found: %s", err.Error()))
+		return
 	}
 
 	parsedPokemon, err := util.ParsePokemon(apiPokemon)
@@ -57,4 +54,33 @@ func GetPokemon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondwithJSON(w, http.StatusOK, parsedPokemon)
+}
+
+func GetPokemonFromAPI(id string) (models.PokeApiPokemonResponse, error) {
+	request := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", id)
+
+	response, err := http.Get(request)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if response.StatusCode == http.StatusNotFound {
+		return models.PokeApiPokemonResponse{}, ErrPokemonNotFound
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return models.PokeApiPokemonResponse{}, ErrPokeApiFailure
+	}
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	apiPokemon := models.PokeApiPokemonResponse{}
+	err = json.Unmarshal(body, &apiPokemon)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return apiPokemon, nil
 }
