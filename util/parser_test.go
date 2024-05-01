@@ -44,3 +44,20 @@ func TestParsePokemonTypeNotFound(t *testing.T) {
 	assert.NotNil(err)
 	assert.EqualError(ErrNotFoundPokemonType, err.Error())
 }
+
+func BenchmarkParser(b *testing.B) {
+	c := assert.New(b)
+
+	body, err := os.ReadFile("samples/pokeapi_response.json")
+	c.NoError(err)
+
+	var response models.PokeApiPokemonResponse
+
+	err = json.Unmarshal(body, &response)
+	c.NoError(err)
+
+	for i := 0; i < b.N; i++ {
+		_, err := ParsePokemon(response)
+		c.NoError(err)
+	}
+}
